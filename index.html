@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>نظام الطيبات | Focus &amp; Productivity Reset</title>
+
+<!-- ===== PWA: manifest + platform meta ===== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS standalone / home-screen support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="الطيبات">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --card-2:#243244;
+    --text:#f8fafc;
+    --text-dim:#94a3b8;
+    --border:#334155;
+    --green:#10b981;
+    --green-dim:rgba(16,185,129,.15);
+    --amber:#f59e0b;
+    --amber-dim:rgba(245,158,11,.15);
+    --red:#f87171;
+    --radius:18px;
+    --radius-sm:12px;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --ease: cubic-bezier(.4,0,.2,1);
+  }
+  *{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;
+    touch-action:manipulation; /* kills the 300ms double-tap-to-zoom delay */
+  }
+  html,body{margin:0;padding:0; overscroll-behavior-y:none;}
+  html{ height:100%; }
+  body{
+    background:radial-gradient(1200px 800px at 80% -10%, #142238 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:"Tajawal","Segoe UI",system-ui,sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    -webkit-user-select:none;
+    user-select:none;
+    /* iPhone notch / home-indicator safe areas */
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
+  }
+  input, textarea{ -webkit-user-select:text; user-select:text; }
+  /* allow selecting reflection/task text content itself */
+  .txt, .reflect-row, .dump-row span{ -webkit-user-select:text; user-select:text; }
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+
+  ::selection{background:var(--green-dim);}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:10px;}
+
+  button{font-family:inherit; cursor:pointer; border:none; outline:none;}
+  input, textarea{font-family:inherit; outline:none; border:none;}
+  a{color:inherit;}
+
+  .wrap{max-width:960px; margin:0 auto; padding:20px 18px 120px;}
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:14px; padding:6px 2px 22px;
+    animation: fadeDown .5s var(--ease);
+  }
+  .greeting-block h1{
+    font-size:20px; margin:0 0 4px; font-weight:700; letter-spacing:.2px;
+  }
+  .greeting-block .sub{color:var(--text-dim); font-size:13px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .prayer-chip{
+    background:var(--card); border:1px solid var(--border); padding:4px 10px;
+    border-radius:100px; font-size:12px; display:inline-flex; gap:6px; align-items:center;
+    color:var(--text);
+  }
+  .prayer-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--green); box-shadow:0 0 8px var(--green);}
+
+  .score-ring{
+    position:relative; width:72px; height:72px; flex-shrink:0;
+  }
+  .score-ring svg{transform:rotate(-90deg); width:72px; height:72px;}
+  .score-ring circle{fill:none; stroke-width:7;}
+  .score-ring .bg{stroke:var(--border);}
+  .score-ring .fg{stroke:var(--green); stroke-linecap:round; transition: stroke-dashoffset 1s var(--ease), stroke .4s;}
+  .score-ring .num{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:16px;
+  }
+
+  /* ---------- Cards ---------- */
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px; margin-bottom:16px; box-shadow:var(--shadow);
+    animation: fadeUp .5s var(--ease);
+  }
+  .card h2{font-size:15px; margin:0 0 14px; display:flex; align-items:center; gap:8px; font-weight:700;}
+  .card h2 .ic{font-size:16px;}
+  .muted{color:var(--text-dim); font-size:12.5px;}
+
+  @keyframes fadeUp{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+  @keyframes fadeDown{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---------- Progress overview ---------- */
+  .progress-total{
+    height:16px; border-radius:100px; background:var(--card-2); overflow:hidden; display:flex;
+    border:1px solid var(--border);
+  }
+  .progress-total .seg{height:100%; transition:width .6s var(--ease);}
+  .seg.critical{background:linear-gradient(90deg,#10b981,#34d399);}
+  .seg.study{background:linear-gradient(90deg,#38bdf8,#818cf8);}
+  .seg.health{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+
+  .legend{display:flex; gap:16px; margin-top:12px; flex-wrap:wrap;}
+  .legend .item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim);}
+  .legend .sw{width:9px;height:9px;border-radius:3px;}
+
+  .big-score{display:flex; align-items:baseline; gap:6px; margin-bottom:10px;}
+  .big-score .n{font-size:34px; font-weight:900;}
+  .big-score .l{color:var(--text-dim); font-size:13px;}
+
+  /* ---------- Task groups ---------- */
+  .group-tabs{display:flex; gap:8px; margin-bottom:14px; overflow-x:auto; padding-bottom:2px;}
+  .group-tabs button{
+    background:var(--card-2); color:var(--text-dim); padding:8px 14px; border-radius:100px;
+    font-size:12.5px; font-weight:700; white-space:nowrap; transition:.25s var(--ease); border:1px solid transparent;
+  }
+  .group-tabs button.active{background:var(--green-dim); color:var(--green); border-color:var(--green);}
+
+  .task-list{display:flex; flex-direction:column; gap:8px;}
+  .task-item{
+    display:flex; align-items:center; gap:10px; background:var(--card-2);
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 12px;
+    transition: transform .2s var(--ease), opacity .3s, background .3s;
+  }
+  .task-item.done{opacity:.55;}
+  .task-item.done .txt{text-decoration:line-through; color:var(--text-dim);}
+  .task-item .check{
+    width:22px; height:22px; border-radius:7px; border:2px solid var(--text-dim); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; transition:.2s var(--ease); background:transparent;
+  }
+  .task-item.done .check{background:var(--green); border-color:var(--green);}
+  .task-item .check svg{width:13px;height:13px; opacity:0; transform:scale(.5); transition:.2s var(--ease);}
+  .task-item.done .check svg{opacity:1; transform:scale(1);}
+  .task-item .txt{flex:1; font-size:13.5px;}
+  .badge{font-size:10px; padding:2px 7px; border-radius:100px; font-weight:700; flex-shrink:0;}
+  .badge.high{background:var(--amber-dim); color:var(--amber);}
+  .del-btn{color:var(--text-dim); font-size:16px; padding:4px; flex-shrink:0; opacity:.6; transition:.2s;}
+  .del-btn:hover{opacity:1; color:var(--red);}
+
+  .add-row{display:flex; gap:8px; margin-top:12px;}
+  .add-row input{
+    flex:1; background:var(--card-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:11px 12px; color:var(--text); font-size:13.5px;
+  }
+  .add-row input:focus{border-color:var(--green);}
+  .add-row button{
+    background:var(--green); color:#062e21; font-weight:800; padding:0 18px; border-radius:var(--radius-sm);
+    font-size:13px; transition:.2s var(--ease);
+  }
+  .add-row button:active{transform:scale(.94);}
+  .empty-hint{color:var(--text-dim); font-size:12.5px; text-align:center; padding:14px 0;}
+
+  /* ---------- Zen button ---------- */
+  .zen-launch{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer;
+    background:linear-gradient(120deg, rgba(16,185,129,.12), rgba(56,189,248,.08));
+  }
+  .zen-launch .l{display:flex; align-items:center; gap:12px;}
+  .zen-launch .ic-circle{
+    width:44px; height:44px; border-radius:50%; background:var(--green-dim); display:flex; align-items:center;
+    justify-content:center; font-size:20px; flex-shrink:0;
+  }
+  .zen-launch b{font-size:14px;}
+  .zen-launch p{margin:2px 0 0; font-size:12px; color:var(--text-dim);}
+  .arrow{font-size:18px; color:var(--green);}
+
+  /* ---------- Reflection ---------- */
+  .reflect-input{
+    width:100%; background:var(--card-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:12px 14px; color:var(--text); font-size:13.5px; resize:none; min-height:52px;
+  }
+  .reflect-input:focus{border-color:var(--green);}
+  .reflect-save{
+    margin-top:10px; background:var(--green); color:#062e21; font-weight:800; padding:10px 18px;
+    border-radius:var(--radius-sm); font-size:13px; float:left;
+  }
+  .reflect-history{margin-top:52px; display:flex; flex-direction:column; gap:8px;}
+  .reflect-row{
+    background:var(--card-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px;
+    font-size:13px;
+  }
+  .reflect-row .d{color:var(--green); font-size:11px; font-weight:700; margin-bottom:3px; display:block;}
+
+  /* ---------- Analytics ---------- */
+  .week-chart{display:flex; align-items:flex-end; gap:8px; height:110px; margin-top:6px;}
+  .week-chart .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;}
+  .week-chart .bar{
+    width:100%; max-width:26px; border-radius:6px 6px 3px 3px; background:var(--card-2); position:relative;
+    transition:height .6s var(--ease); min-height:4px;
+  }
+  .week-chart .bar.today{box-shadow:0 0 0 2px var(--green) inset;}
+  .week-chart .lbl{font-size:10px; color:var(--text-dim);}
+
+  .month-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-top:10px;}
+  .month-grid .cell{
+    aspect-ratio:1; border-radius:5px; background:var(--card-2); border:1px solid var(--border);
+  }
+  .month-legend{display:flex; align-items:center; gap:6px; margin-top:10px; font-size:11px; color:var(--text-dim); justify-content:flex-end;}
+  .month-legend .cell{width:10px;height:10px;border-radius:3px;}
+
+  /* ---------- Brain dump floating ---------- */
+  .fab{
+    position:fixed; left:18px; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:40;
+    width:56px; height:56px; border-radius:50%; background:var(--amber); color:#3a2504;
+    display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 8px 24px rgba(245,158,11,.4);
+    transition:transform .25s var(--ease);
+  }
+  .fab:active{transform:scale(.9);}
+
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(4,8,16,.6); backdrop-filter:blur(3px); z-index:50;
+    opacity:0; pointer-events:none; transition:opacity .3s var(--ease);
+  }
+  .sheet-backdrop.open{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--card);
+    border-radius:22px 22px 0 0; padding:20px 18px calc(26px + env(safe-area-inset-bottom)); max-height:75vh; overflow-y:auto;
+    transform:translateY(100%); transition:transform .35s var(--ease); border-top:1px solid var(--border);
+  }
+  .sheet.open{transform:translateY(0);}
+  .sheet-handle{width:40px; height:4px; background:var(--border); border-radius:10px; margin:0 auto 16px;}
+  .sheet h3{margin:0 0 12px; font-size:16px;}
+  .dump-list{display:flex; flex-direction:column; gap:8px; margin-top:14px;}
+  .dump-row{
+    background:var(--card-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px;
+    font-size:13px; display:flex; align-items:center; gap:8px;
+  }
+  .dump-row span{flex:1;}
+
+  /* ---------- Zen Mode ---------- */
+  .zen-overlay{
+    position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; opacity:0; pointer-events:none; transform:scale(1.02);
+    transition:opacity .4s var(--ease), transform .4s var(--ease);
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .zen-overlay.open{opacity:1; pointer-events:auto; transform:scale(1);}
+  .zen-overlay .zen-task{font-size:15px; color:var(--text-dim); margin-bottom:6px; text-align:center; padding:0 20px;}
+  .zen-overlay .zen-time{font-size:76px; font-weight:900; letter-spacing:2px; font-variant-numeric:tabular-nums; margin:10px 0 30px; transition:opacity .2s;}
+  .zen-ring-wrap{position:relative; width:260px; height:260px; display:flex; align-items:center; justify-content:center;}
+  .zen-ring-wrap svg{position:absolute; inset:0; transform:rotate(-90deg);}
+  .zen-ring-wrap circle{fill:none; stroke-width:5;}
+  .zen-ring-wrap .bgc{stroke:var(--border);}
+  .zen-ring-wrap .fgc{stroke:var(--green); stroke-linecap:round; transition:stroke-dashoffset 1s linear;}
+  .zen-controls{display:flex; gap:14px; margin-top:34px; flex-wrap:wrap; justify-content:center;}
+  .zen-btn{
+    padding:13px 24px; border-radius:100px; font-size:13.5px; font-weight:800; transition:.2s var(--ease);
+  }
+  .zen-btn:active{transform:scale(.93);}
+  .zen-btn.primary{background:var(--green); color:#062e21;}
+  .zen-btn.ghost{background:var(--card-2); color:var(--text); border:1px solid var(--border);}
+  .zen-btn.danger{background:transparent; color:var(--text-dim); border:1px solid var(--border);}
+  .zen-close{position:absolute; top:calc(22px + env(safe-area-inset-top)); left:calc(22px + env(safe-area-inset-left)); font-size:22px; color:var(--text-dim); width:40px; height:40px; border-radius:50%; background:var(--card-2); display:flex; align-items:center; justify-content:center;}
+  .zen-exit-hint{position:absolute; bottom:calc(20px + env(safe-area-inset-bottom)); font-size:11px; color:var(--text-dim);}
+
+  /* ---- Flexible duration picker (shown before a session starts) ---- */
+  .zen-picker{display:flex; flex-direction:column; align-items:center; gap:18px; width:100%; max-width:340px;}
+  .zen-picker .zen-picker-title{font-size:13px; color:var(--text-dim); text-align:center;}
+  .duration-chips{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .duration-chip{
+    background:var(--card-2); border:1.5px solid var(--border); color:var(--text);
+    padding:10px 18px; border-radius:100px; font-size:13.5px; font-weight:800; transition:.2s var(--ease);
+  }
+  .duration-chip.active{background:var(--green-dim); border-color:var(--green); color:var(--green);}
+  .duration-chip:active{transform:scale(.93);}
+  .duration-custom{
+    display:flex; align-items:center; gap:10px; background:var(--card-2); border:1.5px solid var(--border);
+    border-radius:100px; padding:6px 8px 6px 18px; width:100%;
+  }
+  .duration-custom span{font-size:12.5px; color:var(--text-dim); white-space:nowrap;}
+  .duration-custom input{
+    flex:1; background:transparent; color:var(--text); font-size:18px; font-weight:800; text-align:center;
+    -moz-appearance:textfield;
+  }
+  .duration-custom input::-webkit-outer-spin-button,
+  .duration-custom input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .duration-stepper{display:flex; gap:4px;}
+  .duration-stepper button{
+    width:34px; height:34px; border-radius:50%; background:var(--card); border:1px solid var(--border);
+    color:var(--text); font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center;
+  }
+  .duration-stepper button:active{transform:scale(.9); background:var(--green-dim); color:var(--green);}
+
+  /* toast */
+  .toast{
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px); z-index:200;
+    background:var(--card); border:1px solid var(--green); color:var(--text); padding:10px 20px; border-radius:100px;
+    font-size:13px; opacity:0; transition:.35s var(--ease); box-shadow:var(--shadow); white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:480px){
+    .zen-overlay .zen-time{font-size:56px;}
+    .zen-ring-wrap{width:210px;height:210px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="greeting-block">
+      <h1 id="greetingText">مرحباً 👋</h1>
+      <div class="sub">
+        <span id="todayDate"></span>
+        <span class="prayer-chip"><span class="dot"></span><span id="nextPrayerText">...</span></span>
+      </div>
+    </div>
+    <div class="score-ring">
+      <svg viewBox="0 0 72 72">
+        <circle class="bg" cx="36" cy="36" r="30"></circle>
+        <circle class="fg" id="ringFg" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"></circle>
+      </svg>
+      <div class="num" id="ringNum">0%</div>
+    </div>
+  </header>
+
+  <!-- Progress overview -->
+  <div class="card">
+    <h2><span class="ic">📊</span> نظرة اليوم — قاعدة 50/50</h2>
+    <div class="big-score"><span class="n" id="totalScoreNum">0%</span><span class="l">من إنجاز اليوم</span></div>
+    <div class="progress-total">
+      <div class="seg critical" id="segCritical" style="width:0%"></div>
+      <div class="seg study" id="segStudy" style="width:0%"></div>
+      <div class="seg health" id="segHealth" style="width:0%"></div>
+    </div>
+    <div class="legend">
+      <div class="item"><span class="sw" style="background:#10b981"></span> أساسية وثابتة (50%)</div>
+      <div class="item"><span class="sw" style="background:#38bdf8"></span> دراسة وعمل عميق (35%)</div>
+      <div class="item"><span class="sw" style="background:#f59e0b"></span> صحة وترفيه (15%)</div>
+    </div>
+  </div>
+
+  <!-- Zen launch -->
+  <div class="card zen-launch" id="zenLaunch">
+    <div class="l">
+      <div class="ic-circle">🎯</div>
+      <div>
+        <b>وضع التركيز العميق</b>
+        <p>اختفِ عن كل شيء، وابدأ جلسة تركيز الآن</p>
+      </div>
+    </div>
+    <div class="arrow">◀</div>
+  </div>
+
+  <!-- Task groups -->
+  <div class="card">
+    <h2><span class="ic">✅</span> مهام اليوم</h2>
+    <div class="group-tabs">
+      <button class="tab-btn active" data-cat="critical">أساسية 50%</button>
+      <button class="tab-btn" data-cat="study">دراسة/عمل 35%</button>
+      <button class="tab-btn" data-cat="health">صحة/ترفيه 15%</button>
+    </div>
+    <div class="task-list" id="taskList"></div>
+    <div class="add-row">
+      <input type="text" id="newTaskInput" placeholder="أضف مهمة جديدة...">
+      <button id="addTaskBtn">إضافة</button>
+    </div>
+  </div>
+
+  <!-- Reflection -->
+  <div class="card">
+    <h2><span class="ic">🏆</span> سجل الانتصارات اليومية</h2>
+    <p class="muted" style="margin-top:-6px; margin-bottom:10px;">ما هو أفضل إنجاز حققته اليوم؟</p>
+    <textarea class="reflect-input" id="reflectInput" placeholder="اكتب إنجازك هنا..."></textarea>
+    <button class="reflect-save" id="reflectSaveBtn">حفظ</button>
+    <div class="reflect-history" id="reflectHistory"></div>
+  </div>
+
+  <!-- Analytics -->
+  <div class="card">
+    <h2><span class="ic">📈</span> مخطط الإنجاز — الأسبوعي</h2>
+    <div class="week-chart" id="weekChart"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="ic">🗓️</span> الانتظام الشهري</h2>
+    <div class="month-grid" id="monthGrid"></div>
+    <div class="month-legend">
+      أقل <span class="cell" style="background:#243244"></span>
+      <span class="cell" style="background:#f59e0b55"></span>
+      <span class="cell" style="background:#10b98188"></span>
+      <span class="cell" style="background:#10b981"></span> أكثر
+    </div>
+  </div>
+
+</div>
+
+<!-- Floating brain dump button -->
+<button class="fab" id="fabBtn" title="صندوق التفريغ الذهني">🧠</button>
+
+<!-- Brain dump sheet -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="brainSheet">
+  <div class="sheet-handle"></div>
+  <h3>🧠 صندوق التفريغ الذهني</h3>
+  <p class="muted">فرّغ أي فكرة أو خاطرة مزعجة الآن، وراجعها آخر اليوم</p>
+  <div class="add-row" style="margin-top:14px;">
+    <input type="text" id="dumpInput" placeholder="اكتب ما يشغل بالك...">
+    <button id="dumpAddBtn">تفريغ</button>
+  </div>
+  <div class="dump-list" id="dumpList"></div>
+</div>
+
+<!-- Zen mode overlay -->
+<div class="zen-overlay" id="zenOverlay">
+  <button class="zen-close" id="zenCloseBtn">✕</button>
+  <div class="zen-task" id="zenTaskName">اختر مهمة للتركيز عليها</div>
+
+  <!-- Duration picker: shown only before the session starts -->
+  <div class="zen-picker" id="zenPicker">
+    <div class="duration-chips" id="durationChips">
+      <button class="duration-chip" data-min="15">15د</button>
+      <button class="duration-chip active" data-min="25">25د</button>
+      <button class="duration-chip" data-min="45">45د</button>
+      <button class="duration-chip" data-min="60">60د</button>
+    </div>
+    <div class="duration-custom">
+      <span>مدة مخصصة</span>
+      <div class="duration-stepper">
+        <button id="durMinusBtn" type="button">−</button>
+      </div>
+      <input type="number" id="customDurationInput" min="1" max="180" value="25" inputmode="numeric">
+      <div class="duration-stepper">
+        <button id="durPlusBtn" type="button">+</button>
+      </div>
+      <span>دقيقة</span>
+    </div>
+  </div>
+
+  <div class="zen-ring-wrap">
+    <svg viewBox="0 0 260 260">
+      <circle class="bgc" cx="130" cy="130" r="118"></circle>
+      <circle class="fgc" id="zenRingFg" cx="130" cy="130" r="118" stroke-dasharray="741" stroke-dashoffset="0"></circle>
+    </svg>
+    <div class="zen-time" id="zenTime">25:00</div>
+  </div>
+  <div class="zen-controls">
+    <button class="zen-btn primary" id="zenStartBtn">ابدأ</button>
+    <button class="zen-btn ghost" id="zenDoneBtn">إنهاء ✓</button>
+    <button class="zen-btn danger" id="zenCancelBtn">إلغاء</button>
+  </div>
+  <div class="zen-exit-hint">اضغط ✕ للخروج من دون إيقاف المؤقت</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ Utilities ============ */
+  const $ = (sel, ctx=document) => ctx.querySelector(sel);
+  const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+  const todayStr = () => {
+    const d = new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  };
+  const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+  const WEIGHTS = { critical:50, study:35, health:15 };
+
+  /* ============ State / Storage ============ */
+  const STORE_KEY = "tayyibat_state_v1";
+  let state = loadState();
+
+  function defaultState(){
+    return {
+      lastOpenDate: todayStr(),
+      tasks: [],          // {id, text, cat, done, date, carried}
+      dumps: [],          // {id, text, ts}
+      reflections: [],    // {date, text}
+      history: {},         // date -> score (0-100), saved when day rolls over
+      prayerTimes: { fajr:"04:30", dhuhr:"12:30", asr:"15:45", maghrib:"18:50", isha:"20:20" }, // fallback defaults
+      prayerCache: null,   // { date:"YYYY-MM-DD", times:{...}, source:"api"|"default" } — one fetch per day
+      zenLastTask: ""
+    };
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      return Object.assign(defaultState(), parsed);
+    }catch(e){
+      return defaultState();
+    }
+  }
+  function saveState(){
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }
+
+  /* ============ Day rollover: carry unfinished critical tasks ============ */
+  function computeScoreForDate(dateStr){
+    const dayTasks = state.tasks.filter(t => t.date === dateStr);
+    let total = 0;
+    ["critical","study","health"].forEach(cat=>{
+      const items = dayTasks.filter(t=>t.cat===cat);
+      if(items.length){
+        const done = items.filter(t=>t.done).length;
+        total += (done/items.length) * WEIGHTS[cat];
+      }
+    });
+    return Math.round(total);
+  }
+
+  function rolloverIfNeeded(){
+    const today = todayStr();
+    if(state.lastOpenDate === today) return;
+
+    // archive score for the previous day(s)
+    const prevDate = state.lastOpenDate;
+    if(prevDate){
+      state.history[prevDate] = computeScoreForDate(prevDate);
+    }
+
+    // carry over unfinished CRITICAL tasks from prevDate to today, tagged high priority
+    const unfinishedCritical = state.tasks.filter(t => t.date === prevDate && t.cat === "critical" && !t.done);
+    unfinishedCritical.forEach(t=>{
+      state.tasks.push({
+        id: uid(),
+        text: t.text,
+        cat: "critical",
+        done: false,
+        date: today,
+        carried: true
+      });
+    });
+
+    state.lastOpenDate = today;
+    saveState();
+  }
+
+  rolloverIfNeeded();
+
+  /* ============ Header: greeting + date + prayer ============ */
+  function renderGreeting(){
+    const hour = new Date().getHours();
+    let greet = "مرحباً 👋";
+    if(hour < 5) greet = "سهرة طيبة 🌙";
+    else if(hour < 12) greet = "صباح الخير ☀️";
+    else if(hour < 17) greet = "نهارك سعيد 🌤️";
+    else if(hour < 20) greet = "مساء الخير 🌇";
+    else greet = "مساء الهدوء 🌙";
+    $("#greetingText").textContent = greet;
+
+    const d = new Date();
+    const days = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+    const months = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    $("#todayDate").textContent = `${days[d.getDay()]}، ${d.getDate()} ${months[d.getMonth()]}`;
+  }
+
+  /* ---- Live prayer times via Aladhan API (geolocation-based, cached per day) ---- */
+  const PRAYER_CACHE_KEY = "tayyibat_prayer_cache_v1";
+  let activePrayerTimings = state.prayerTimes; // start with fallback defaults until live data (if any) loads
+
+  function cleanTimeStr(raw){
+    // Aladhan sometimes returns "HH:MM (Timezone)" — extract just HH:MM
+    const m = String(raw).match(/\d{2}:\d{2}/);
+    return m ? m[0] : raw;
+  }
+
+  function readPrayerCache(){
+    try{
+      const raw = localStorage.getItem(PRAYER_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function writePrayerCache(timings, coords){
+    try{
+      localStorage.setItem(PRAYER_CACHE_KEY, JSON.stringify({
+        date: todayStr(),
+        timings,
+        coords: coords || null
+      }));
+    }catch(e){ /* storage full or unavailable — ignore, not critical */ }
+  }
+
+  function initPrayerTimes(){
+    const today = todayStr();
+    const cache = readPrayerCache();
+
+    // Already fetched today — reuse cached timings, no network call needed.
+    if(cache && cache.date === today && cache.timings){
+      activePrayerTimings = cache.timings;
+      renderNextPrayer();
+      return;
+    }
+
+    // No geolocation support (or offline) — fall back to defaults immediately.
+    if(!navigator.geolocation || !navigator.onLine){
+      activePrayerTimings = state.prayerTimes;
+      renderNextPrayer();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos)=>{
+        const { latitude, longitude } = pos.coords;
+        fetch(`https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=4`)
+          .then(res => { if(!res.ok) throw new Error("bad response"); return res.json(); })
+          .then(json => {
+            const t = json && json.data && json.data.timings;
+            if(!t) throw new Error("no timings in response");
+            const timings = {
+              fajr: cleanTimeStr(t.Fajr),
+              dhuhr: cleanTimeStr(t.Dhuhr),
+              asr: cleanTimeStr(t.Asr),
+              maghrib: cleanTimeStr(t.Maghrib),
+              isha: cleanTimeStr(t.Isha)
+            };
+            activePrayerTimings = timings;
+            writePrayerCache(timings, { lat: latitude, lon: longitude });
+            renderNextPrayer();
+          })
+          .catch(()=>{
+            // API failed or offline mid-request — use defaults, try again next load.
+            activePrayerTimings = state.prayerTimes;
+            renderNextPrayer();
+          });
+      },
+      ()=>{
+        // Permission denied / geolocation error — use defaults.
+        activePrayerTimings = state.prayerTimes;
+        renderNextPrayer();
+      },
+      { timeout: 8000, maximumAge: 3600000 }
+    );
+  }
+
+  function renderNextPrayer(){
+    const names = { fajr:"الفجر", dhuhr:"الظهر", asr:"العصر", maghrib:"المغرب", isha:"العشاء" };
+    const now = new Date();
+    const nowMin = now.getHours()*60 + now.getMinutes();
+    const entries = Object.entries(activePrayerTimings).map(([k,v])=>{
+      const [h,m] = String(v).split(":").map(Number);
+      return { key:k, min: h*60+m };
+    }).sort((a,b)=>a.min-b.min);
+
+    let next = entries.find(e => e.min > nowMin);
+    if(!next) next = entries[0]; // wraps to fajr next day
+    const diff = next.min > nowMin ? next.min - nowMin : (1440 - nowMin + next.min);
+    const hrs = Math.floor(diff/60), mins = diff%60;
+    let timeLeft = hrs > 0 ? `${hrs} س ${mins} د` : `${mins} د`;
+    $("#nextPrayerText").textContent = `${names[next.key]} بعد ${timeLeft}`;
+  }
+
+  /* ============ Progress ring + bars ============ */
+  function renderProgress(){
+    const today = todayStr();
+    const todaysTasks = state.tasks.filter(t=>t.date===today);
+    let scores = {};
+    let total = 0;
+    ["critical","study","health"].forEach(cat=>{
+      const items = todaysTasks.filter(t=>t.cat===cat);
+      const pct = items.length ? (items.filter(t=>t.done).length/items.length) : 0;
+      scores[cat] = pct * WEIGHTS[cat];
+      total += scores[cat];
+    });
+    total = Math.round(total);
+
+    $("#totalScoreNum").textContent = total + "%";
+    $("#segCritical").style.width = (scores.critical/WEIGHTS.critical*50) + "%"; // visually relative
+    $("#segCritical").style.width = scores.critical + "%";
+    $("#segStudy").style.width = scores.study + "%";
+    $("#segHealth").style.width = scores.health + "%";
+
+    // ring
+    const R = 30, C = 2*Math.PI*R;
+    const fg = $("#ringFg");
+    fg.setAttribute("stroke-dasharray", C.toFixed(1));
+    fg.setAttribute("stroke-dashoffset", (C - (total/100)*C).toFixed(1));
+    if(total >= 80) fg.style.stroke = "var(--green)";
+    else if(total >= 40) fg.style.stroke = "var(--amber)";
+    else fg.style.stroke = "#f87171";
+    $("#ringNum").textContent = total + "%";
+
+    // keep today's history live-updated too (for chart accuracy today)
+    state.history[today] = total;
+  }
+
+  /* ============ Tasks ============ */
+  let activeCat = "critical";
+
+  function renderTasks(){
+    const today = todayStr();
+    const list = $("#taskList");
+    const items = state.tasks.filter(t=>t.date===today && t.cat===activeCat);
+    list.innerHTML = "";
+    if(!items.length){
+      list.innerHTML = `<div class="empty-hint">لا توجد مهام هنا بعد — أضف واحدة بالأسفل 👇</div>`;
+      return;
+    }
+    items.forEach(t=>{
+      const row = document.createElement("div");
+      row.className = "task-item" + (t.done ? " done" : "");
+      row.innerHTML = `
+        <button class="check" data-id="${t.id}">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#062e21" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="txt">${escapeHtml(t.text)}</span>
+        ${t.carried ? '<span class="badge high">أولوية عالية</span>' : ""}
+        <button class="del-btn" data-id="${t.id}">✕</button>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function addTask(text){
+    if(!text.trim()) return;
+    state.tasks.push({ id: uid(), text: text.trim(), cat: activeCat, done:false, date: todayStr(), carried:false });
+    saveState();
+    renderAll();
+  }
+
+  function toggleTask(id){
+    const t = state.tasks.find(t=>t.id===id);
+    if(!t) return;
+    t.done = !t.done;
+    saveState();
+    renderAll();
+    if(t.done) showToast("أحسنت! تم إنجاز المهمة ✅");
+  }
+
+  function deleteTask(id){
+    state.tasks = state.tasks.filter(t=>t.id!==id);
+    saveState();
+    renderAll();
+  }
+
+  $("#taskList").addEventListener("click", (e)=>{
+    const check = e.target.closest(".check");
+    const del = e.target.closest(".del-btn");
+    if(check) toggleTask(check.dataset.id);
+    else if(del) deleteTask(del.dataset.id);
+  });
+
+  $$(".tab-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      $$(".tab-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      activeCat = btn.dataset.cat;
+      renderTasks();
+    });
+  });
+
+  $("#addTaskBtn").addEventListener("click", ()=>{
+    const inp = $("#newTaskInput");
+    addTask(inp.value);
+    inp.value = "";
+    inp.focus();
+  });
+  $("#newTaskInput").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ $("#addTaskBtn").click(); }
+  });
+
+  /* ============ Brain dump ============ */
+  function renderDumps(){
+    const list = $("#dumpList");
+    list.innerHTML = "";
+    if(!state.dumps.length){
+      list.innerHTML = `<div class="empty-hint">لا توجد أفكار مسجلة الآن</div>`;
+      return;
+    }
+    state.dumps.slice().reverse().forEach(d=>{
+      const row = document.createElement("div");
+      row.className = "dump-row";
+      row.innerHTML = `<span>${escapeHtml(d.text)}</span><button class="del-btn" data-id="${d.id}">✕</button>`;
+      list.appendChild(row);
+    });
+  }
+  $("#dumpList").addEventListener("click", (e)=>{
+    const del = e.target.closest(".del-btn");
+    if(del){
+      state.dumps = state.dumps.filter(d=>d.id!==del.dataset.id);
+      saveState();
+      renderDumps();
+    }
+  });
+
+  function openSheet(){
+    $("#sheetBackdrop").classList.add("open");
+    $("#brainSheet").classList.add("open");
+    setTimeout(()=>$("#dumpInput").focus(), 300);
+  }
+  function closeSheet(){
+    $("#sheetBackdrop").classList.remove("open");
+    $("#brainSheet").classList.remove("open");
+  }
+  $("#fabBtn").addEventListener("click", openSheet);
+  $("#sheetBackdrop").addEventListener("click", closeSheet);
+
+  $("#dumpAddBtn").addEventListener("click", ()=>{
+    const inp = $("#dumpInput");
+    if(!inp.value.trim()) return;
+    state.dumps.push({ id: uid(), text: inp.value.trim(), ts: Date.now() });
+    saveState();
+    inp.value = "";
+    renderDumps();
+    showToast("تم التفريغ 🧠");
+  });
+  $("#dumpInput").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ $("#dumpAddBtn").click(); }
+  });
+
+  /* ============ Reflection log ============ */
+  function renderReflections(){
+    const wrap = $("#reflectHistory");
+    wrap.innerHTML = "";
+    if(!state.reflections.length){
+      wrap.innerHTML = `<div class="empty-hint">لم تُسجَّل انتصارات بعد</div>`;
+      return;
+    }
+    state.reflections.slice().reverse().slice(0,10).forEach(r=>{
+      const row = document.createElement("div");
+      row.className = "reflect-row";
+      row.innerHTML = `<span class="d">${r.date}</span>${escapeHtml(r.text)}`;
+      wrap.appendChild(row);
+    });
+  }
+  $("#reflectSaveBtn").addEventListener("click", ()=>{
+    const inp = $("#reflectInput");
+    if(!inp.value.trim()) return;
+    const today = todayStr();
+    const existing = state.reflections.find(r=>r.date===today);
+    if(existing) existing.text = inp.value.trim();
+    else state.reflections.push({ date: today, text: inp.value.trim() });
+    saveState();
+    inp.value = "";
+    renderReflections();
+    showToast("تم حفظ إنجازك اليوم 🏆");
+  });
+
+  /* ============ Analytics: week + month ============ */
+  function renderWeekChart(){
+    const chart = $("#weekChart");
+    chart.innerHTML = "";
+    const days = ["أحد","اثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
+    const today = new Date();
+    const items = [];
+    for(let i=6;i>=0;i--){
+      const d = new Date(today);
+      d.setDate(d.getDate()-i);
+      const key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      const score = state.history[key] || 0;
+      items.push({ key, score, label: days[d.getDay()], isToday: i===0 });
+    }
+    items.forEach(it=>{
+      const col = document.createElement("div");
+      col.className = "bar-col";
+      const color = it.score>=80 ? "var(--green)" : it.score>=40 ? "var(--amber)" : "#475569";
+      col.innerHTML = `
+        <div class="bar${it.isToday ? " today":""}" style="height:${Math.max(it.score,3)}%; background:${it.score? color : 'var(--card-2)'};"></div>
+        <div class="lbl">${it.label}</div>
+      `;
+      chart.appendChild(col);
+    });
+  }
+
+  function renderMonthGrid(){
+    const grid = $("#monthGrid");
+    grid.innerHTML = "";
+    const now = new Date();
+    const year = now.getFullYear(), month = now.getMonth();
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    for(let day=1; day<=daysInMonth; day++){
+      const key = year+"-"+String(month+1).padStart(2,"0")+"-"+String(day).padStart(2,"0");
+      const score = state.history[key];
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.title = key + (score!==undefined ? ` — ${score}%` : "");
+      if(score === undefined){
+        cell.style.background = "#1a2536";
+      } else if(score >= 80){
+        cell.style.background = "#10b981";
+      } else if(score >= 50){
+        cell.style.background = "#10b98188";
+      } else if(score > 0){
+        cell.style.background = "#f59e0b66";
+      } else {
+        cell.style.background = "#243244";
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  /* ============ Toast ============ */
+  let toastTimer = null;
+  function showToast(msg){
+    const t = $("#toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+  }
+
+  /* ============ Zen / Focus Mode — flexible duration ============ */
+  const ZEN_DEFAULT_MIN = 25;
+  const ZEN_MIN_MINUTES = 1;
+  const ZEN_MAX_MINUTES = 180;
+
+  let zenDurationMin = Number(localStorage.getItem("tayyibat_zen_last_duration")) || ZEN_DEFAULT_MIN;
+  let zenSeconds = zenDurationMin * 60;
+  let zenTotal = zenDurationMin * 60;
+  let zenTimerId = null;
+  let zenRunning = false;
+  let zenStarted = false; // becomes true once the countdown has begun (locks the picker)
+
+  function fmtTime(sec){
+    const m = Math.floor(sec/60), s = sec%60;
+    return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+  }
+
+  function updateZenRing(){
+    const R = 118, C = 2*Math.PI*R;
+    const ring = $("#zenRingFg");
+    ring.setAttribute("stroke-dasharray", C.toFixed(1));
+    const progress = zenTotal > 0 ? 1 - (zenSeconds/zenTotal) : 0;
+    ring.setAttribute("stroke-dashoffset", (C*(1-progress)).toFixed(1));
+    $("#zenTime").textContent = fmtTime(zenSeconds);
+  }
+
+  function setZenDuration(minutes){
+    minutes = Math.min(ZEN_MAX_MINUTES, Math.max(ZEN_MIN_MINUTES, Math.round(minutes)));
+    zenDurationMin = minutes;
+    zenSeconds = minutes * 60;
+    zenTotal = minutes * 60;
+    $("#customDurationInput").value = minutes;
+    $$(".duration-chip").forEach(c => c.classList.toggle("active", Number(c.dataset.min) === minutes));
+    updateZenRing();
+    localStorage.setItem("tayyibat_zen_last_duration", String(minutes));
+  }
+
+  function setPickerLocked(locked){
+    $("#zenPicker").style.display = locked ? "none" : "flex";
+  }
+
+  function openZen(){
+    document.body.style.overflow = "hidden";
+    $("#zenOverlay").classList.add("open");
+    const activeTask = getFirstUndoneTaskName();
+    state.zenLastTask = activeTask || "جلسة تركيز حرة";
+    $("#zenTaskName").textContent = state.zenLastTask;
+
+    zenStarted = false;
+    zenRunning = false;
+    setPickerLocked(false);
+    setZenDuration(zenDurationMin || ZEN_DEFAULT_MIN);
+    $("#zenStartBtn").textContent = "ابدأ";
+  }
+
+  function getFirstUndoneTaskName(){
+    const today = todayStr();
+    const t = state.tasks.find(t=>t.date===today && !t.done);
+    return t ? t.text : "";
+  }
+
+  function closeZen(){
+    document.body.style.overflow = "";
+    $("#zenOverlay").classList.remove("open");
+  }
+
+  /* ---- End-of-session alert: short audio tone (Web Audio) + vibration ---- */
+  function playZenAlert(){
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      const now = ctx.currentTime;
+      [0, 0.28, 0.56].forEach((offset, i)=>{
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = i === 2 ? 880 : 660;
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.25, now + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.24);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.26);
+      });
+    }catch(e){ /* Web Audio unavailable — silently skip the tone */ }
+
+    if("vibrate" in navigator){
+      try{ navigator.vibrate([200, 90, 200, 90, 300]); }catch(e){}
+    }
+  }
+
+  function zenTick(){
+    if(zenSeconds <= 0){
+      clearInterval(zenTimerId);
+      zenRunning = false;
+      playZenAlert();
+      showToast("انتهت الجلسة! أحسنت 🎉");
+      $("#zenStartBtn").textContent = "ابدأ من جديد";
+      zenStarted = false;
+      setPickerLocked(false);
+      return;
+    }
+    zenSeconds--;
+    updateZenRing();
+  }
+
+  function toggleZenTimer(){
+    if(zenRunning){
+      clearInterval(zenTimerId);
+      zenRunning = false;
+      $("#zenStartBtn").textContent = "استئناف";
+    } else {
+      if(!zenStarted || zenSeconds === 0){
+        // fresh start (or restart after finishing) — lock the duration picker in
+        zenSeconds = zenDurationMin * 60;
+        zenTotal = zenDurationMin * 60;
+      }
+      zenStarted = true;
+      setPickerLocked(true);
+      zenRunning = true;
+      $("#zenStartBtn").textContent = "إيقاف مؤقت";
+      zenTimerId = setInterval(zenTick, 1000);
+    }
+  }
+
+  // Quick-select duration chips
+  $("#durationChips").addEventListener("click", (e)=>{
+    const chip = e.target.closest(".duration-chip");
+    if(!chip || zenStarted) return;
+    setZenDuration(Number(chip.dataset.min));
+  });
+
+  // Custom numeric duration input
+  $("#customDurationInput").addEventListener("input", (e)=>{
+    if(zenStarted) return;
+    const val = parseInt(e.target.value, 10);
+    if(!isNaN(val)) setZenDuration(val);
+  });
+  $("#customDurationInput").addEventListener("blur", (e)=>{
+    if(zenStarted) return;
+    const val = parseInt(e.target.value, 10);
+    setZenDuration(isNaN(val) ? ZEN_DEFAULT_MIN : val);
+  });
+  $("#durMinusBtn").addEventListener("click", ()=>{ if(!zenStarted) setZenDuration(zenDurationMin - 5); });
+  $("#durPlusBtn").addEventListener("click", ()=>{ if(!zenStarted) setZenDuration(zenDurationMin + 5); });
+
+  $("#zenLaunch").addEventListener("click", openZen);
+  $("#zenCloseBtn").addEventListener("click", closeZen);
+  $("#zenStartBtn").addEventListener("click", toggleZenTimer);
+  $("#zenCancelBtn").addEventListener("click", ()=>{
+    clearInterval(zenTimerId);
+    zenRunning = false;
+    zenStarted = false;
+    closeZen();
+  });
+  $("#zenDoneBtn").addEventListener("click", ()=>{
+    clearInterval(zenTimerId);
+    zenRunning = false;
+    zenStarted = false;
+    const today = todayStr();
+    const t = state.tasks.find(t=>t.date===today && !t.done && t.text===state.zenLastTask);
+    if(t){ t.done = true; saveState(); renderAll(); }
+    showToast("تم إنجاز المهمة، عمل رائع 💪");
+    closeZen();
+  });
+
+  /* ============ Render all ============ */
+  function renderAll(){
+    renderGreeting();
+    renderNextPrayer();
+    renderProgress();
+    renderTasks();
+    renderDumps();
+    renderReflections();
+    renderWeekChart();
+    renderMonthGrid();
+    saveState();
+  }
+
+  /* ============ PWA: service worker registration (100% offline after first load) ============ */
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("sw.js").catch(()=>{
+        // Registration fails harmlessly when opened via file:// or an unsupported host —
+        // the app still works fully online, it just won't cache for offline use there.
+      });
+    });
+  }
+
+  /* ============ Extra double-tap-zoom guard (belt-and-suspenders alongside CSS touch-action) ============ */
+  let lastTouchEnd = 0;
+  document.addEventListener("touchend", (e)=>{
+    const now = Date.now();
+    if(now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive:false });
+
+  renderAll();
+  initPrayerTimes(); // one geolocation + API call per day (cached), then just refreshes the countdown label
+  setInterval(renderNextPrayer, 30000);
+
+  // periodic day-rollover check (in case app stays open past midnight)
+  setInterval(()=>{
+    const today = todayStr();
+    if(state.lastOpenDate !== today){
+      rolloverIfNeeded();
+      renderAll();
+      initPrayerTimes(); // new day → cache is stale, fetch fresh timings
+      showToast("يوم جديد بدأ ✨");
+    }
+  }, 60000);
+
+})();
+</script>
+</body>
+</html>
