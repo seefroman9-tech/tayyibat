@@ -2,7 +2,7 @@
    Cache-first app-shell strategy => 100% offline capable after first load.
    Bump CACHE_VERSION whenever index.html / assets change so clients pick up updates. */
 
-const CACHE_VERSION = "tayyibat-v1.0.0";
+const CACHE_VERSION = "tayyibat-v1.2.0";
 const APP_SHELL = [
   "./",
   "./index.html",
